@@ -17,32 +17,34 @@ NC='\033[0m' # No Color
 
 echo -e "${YELLOW}Updating authorized_keys from GitHub repository...${NC}"
 
-# Import GPG public key if not already present
-if ! gpg --list-keys "$GPG_FINGERPRINT" &>/dev/null; then
-    echo "Importing GPG public key..."
-    curl -fsSL "$GPG_PUBLIC_KEY_URL" | gpg --import 2>/dev/null || {
-        echo -e "${RED}Error: Failed to import GPG public key${NC}"
-        exit 1
-    }
-    
-    # Verify the imported key matches the expected fingerprint
-    if ! gpg --list-keys "$GPG_FINGERPRINT" &>/dev/null; then
-        echo -e "${RED}Error: Imported key does not match expected fingerprint${NC}"
-        echo -e "${RED}Expected: $GPG_FINGERPRINT${NC}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN}✓ GPG public key imported and verified${NC}"
-    
-    # Trust the key ultimately
-    echo "Setting trust level for GPG key..."
-    echo -e "5\ny\n" | gpg --command-fd 0 --expert --edit-key "$GPG_FINGERPRINT" trust quit &>/dev/null || {
-        echo -e "${YELLOW}Warning: Failed to set trust level automatically${NC}"
-    }
-    echo -e "${GREEN}✓ GPG public key trusted${NC}"
-else
-    echo -e "${GREEN}✓ GPG public key already present${NC}"
+# Remove existing GPG key if present to ensure we get the latest version
+if gpg --list-keys "$GPG_FINGERPRINT" &>/dev/null; then
+    echo "Removing existing GPG public key..."
+    gpg --batch --yes --delete-keys "$GPG_FINGERPRINT" 2>/dev/null || true
 fi
+
+# Import fresh GPG public key
+echo "Importing GPG public key..."
+curl -fsSL "$GPG_PUBLIC_KEY_URL" | gpg --import 2>/dev/null || {
+    echo -e "${RED}Error: Failed to import GPG public key${NC}"
+    exit 1
+}
+
+# Verify the imported key matches the expected fingerprint
+if ! gpg --list-keys "$GPG_FINGERPRINT" &>/dev/null; then
+    echo -e "${RED}Error: Imported key does not match expected fingerprint${NC}"
+    echo -e "${RED}Expected: $GPG_FINGERPRINT${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ GPG public key imported and verified${NC}"
+
+# Trust the key ultimately
+echo "Setting trust level for GPG key..."
+echo -e "5\ny\n" | gpg --command-fd 0 --expert --edit-key "$GPG_FINGERPRINT" trust quit &>/dev/null || {
+    echo -e "${YELLOW}Warning: Failed to set trust level automatically${NC}"
+}
+echo -e "${GREEN}✓ GPG public key trusted${NC}"
 
 # Create temporary directory
 TEMP_DIR=$(mktemp -d)
