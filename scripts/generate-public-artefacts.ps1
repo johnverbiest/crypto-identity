@@ -5,6 +5,52 @@ echo "Public key export to $outputPath"
 gpg --armor --export 3F17AE63F095712C | Out-File -FilePath $outputPath -Encoding ASCII
 echo "Public key exported to $outputPath"
 
+echo "Uploading public key to keys.openpgp.org"
+try {
+    $publicKey = Get-Content $outputPath -Raw
+    echo "Key length: $($publicKey.Length) characters"
+    
+    # Manually construct JSON to ensure proper string encoding
+    $escapedKey = [System.Text.RegularExpressions.Regex]::Escape($publicKey)
+    $escapedKey = $publicKey.Replace('\', '\\').Replace('"', '\"').Replace("`r`n", '\n').Replace("`n", '\n').Replace("`r", '\n')
+    $jsonBody = "{`"keytext`":`"$escapedKey`"}"
+    echo "JSON body length: $($jsonBody.Length) bytes"
+    
+    echo "Sending POST request..."
+    $response = Invoke-RestMethod -Uri "https://keys.openpgp.org/vks/v1/upload" `
+        -Method Post `
+        -Body $jsonBody `
+        -ContentType "application/json" `
+        -TimeoutSec 30 `
+        -Verbose
+    
+    echo "Public key uploaded successfully to keys.openpgp.org"
+    echo "Key fingerprint: $($response.key_fpr)"
+    if ($response.token) {
+        echo "Token: $($response.token)"
+    }
+    if ($response.status) {
+        echo "Status: $($response.status | ConvertTo-Json)"
+    }
+} catch {
+    echo "Error Type: $($_.Exception.GetType().FullName)"
+    echo "Error Message: $($_.Exception.Message)"
+    if ($_.Exception.Response) {
+        echo "HTTP Status: $($_.Exception.Response.StatusCode) $($_.Exception.Response.StatusDescription)"
+        try {
+            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+            $responseBody = $reader.ReadToEnd()
+            echo "Response Body: $responseBody"
+        } catch {
+            echo "Could not read response body"
+        }
+    }
+    if ($_.ErrorDetails) {
+        echo "Error Details: $($_.ErrorDetails.Message)"
+    }
+    echo "Full Error: $_"
+}
+
 $outputPath = Join-Path (Split-Path -Parent $scriptDir) "identity.md"
 echo "Resigning the identity file $outputPath"
 Remove-Item "$outputPath.asc" -ErrorAction SilentlyContinue
@@ -65,3 +111,25 @@ if ($activeSubkeys.Count -eq 0) {
         echo "Saved $($finalKeys.Count) SSH public key(s) to $outputPath"
     }
 }
+
+$outputPath = Join-Path (Split-Path -Parent $scriptDir) "README.md"
+echo "Generating README.md at $outputPath"
+
+$readmeContent = @"
+# Crypto Identity
+
+This repository contains the cryptographic identity information for John Verbiest.
+
+## Documents
+
+- [Identity Statement](identity.md) - Main identity document with OpenPGP key fingerprint
+- [Identity Statement (PDF)](identity.pdf) - PDF version of the identity statement
+- [SSH Public Keys Setup](ssh/readme.md) - Instructions for importing SSH public keys
+
+## Verification
+
+All documents in this repository are cryptographically signed and can be verified using the GPG key found in the [gpg](gpg/) directory.
+"@
+
+$readmeContent | Out-File -FilePath $outputPath -Encoding UTF8 -NoNewline
+echo "README.md generated at $outputPath"
