@@ -12,6 +12,16 @@ This directory contains the public OpenPGP key for John Verbiest.
 E3FF2C5FE713C7DCA36C900993DE6C09D1FDC17C
 ```
 
+## QR Code
+
+Scan this QR code with OpenKeychain or other compatible apps to import the key:
+
+![QR Code for GPG Key](fingerprint-qrcode.png)
+
+The QR code contains: `OPENPGP4FPR:E3FF2C5FE713C7DCA36C900993DE6C09D1FDC17C`
+
+**Verification:** [fingerprint-qrcode.png.asc](fingerprint-qrcode.png.asc)
+
 ## Import Key
 
 To import this key into your GPG keyring:

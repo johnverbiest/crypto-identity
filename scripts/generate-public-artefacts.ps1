@@ -51,6 +51,19 @@ try {
     echo "Full Error: $_"
 }
 
+$fingerprint = "E3FF2C5FE713C7DCA36C900993DE6C09D1FDC17C"
+$qrCodePath = Join-Path (Split-Path -Parent $scriptDir) "gpg\fingerprint-qrcode.png"
+echo "Generating QR code at $qrCodePath"
+
+$qrCodeUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=OPENPGP4FPR:$fingerprint"
+Invoke-WebRequest -Uri $qrCodeUrl -OutFile $qrCodePath
+echo "QR code downloaded to $qrCodePath"
+
+echo "Signing QR code"
+Remove-Item "$qrCodePath.asc" -ErrorAction SilentlyContinue
+gpg --detach-sign --armor $qrCodePath
+echo "QR code signed"
+
 $outputPath = Join-Path (Split-Path -Parent $scriptDir) "gpg\readme.md"
 echo "Generating GPG readme at $outputPath"
 
@@ -66,8 +79,18 @@ This directory contains the public OpenPGP key for John Verbiest.
 ## Key Fingerprint
 
 ``````
-E3FF2C5FE713C7DCA36C900993DE6C09D1FDC17C
+$fingerprint
 ``````
+
+## QR Code
+
+Scan this QR code with OpenKeychain or other compatible apps to import the key:
+
+![QR Code for GPG Key](fingerprint-qrcode.png)
+
+The QR code contains: ``OPENPGP4FPR:$fingerprint``
+
+**Verification:** [fingerprint-qrcode.png.asc](fingerprint-qrcode.png.asc)
 
 ## Import Key
 
@@ -80,12 +103,12 @@ gpg --import john-verbiest-public.asc
 Or download directly from a keyserver:
 
 ``````bash
-gpg --recv-keys E3FF2C5FE713C7DCA36C900993DE6C09D1FDC17C
+gpg --recv-keys $fingerprint
 ``````
 
 ## Verify Key
 
-The key is also available on [keys.openpgp.org](https://keys.openpgp.org/search?q=E3FF2C5FE713C7DCA36C900993DE6C09D1FDC17C).
+The key is also available on [keys.openpgp.org](https://keys.openpgp.org/search?q=$fingerprint).
 "@
 
 $gpgReadmeContent | Out-File -FilePath $outputPath -Encoding UTF8 -NoNewline
