@@ -120,6 +120,16 @@ Remove-Item "$outputPath.asc" -ErrorAction SilentlyContinue
 gpg --detach-sign --armor $outputPath
 echo "Resigned the identity file $outputPath"
 
+$outputPath = Join-Path (Split-Path -Parent $scriptDir) "identity.pdf"
+if (Test-Path $outputPath) {
+    echo "Resigning the identity PDF $outputPath"
+    Remove-Item "$outputPath.asc" -ErrorAction SilentlyContinue
+    gpg --detach-sign --armor $outputPath
+    echo "Resigned the identity PDF $outputPath"
+} else {
+    echo "Warning: identity.pdf not found, skipping signature"
+}
+
 $outputPath = Join-Path (Split-Path -Parent $scriptDir) "ssh\ssh_auth_keys.pub"
 echo "Exporting SSH public keys to $outputPath"
 
@@ -173,6 +183,13 @@ if ($activeSubkeys.Count -eq 0) {
         ($finalKeys -join "`n") | Out-File -FilePath $outputPath -Encoding ASCII -NoNewline
         echo "Saved $($finalKeys.Count) SSH public key(s) to $outputPath"
     }
+}
+
+if (Test-Path $outputPath) {
+    echo "Resigning SSH public keys file $outputPath"
+    Remove-Item "$outputPath.asc" -ErrorAction SilentlyContinue
+    gpg --detach-sign --armor $outputPath
+    echo "Resigned SSH public keys file $outputPath"
 }
 
 $outputPath = Join-Path (Split-Path -Parent $scriptDir) "README.md"
